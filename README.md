@@ -1,37 +1,52 @@
-# Cognifyz Internship — Task 5 & Task 6
+# 🔐 Secure CRUD API — Cognifyz Internship (Task 5 & 6)
 
-**Task 5: API Integration and Front-End Interaction**
-- RESTful CRUD API (`/api/items`) built with Express
-- Front-end (`public/index.html`) fetches and displays data from the API
+![Node.js](https://img.shields.io/badge/Node.js-v22-339933?logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-black?logo=express)
+![SQLite](https://img.shields.io/badge/SQLite-database-003B57?logo=sqlite&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT-black?logo=jsonwebtokens)
+![Status](https://img.shields.io/badge/status-complete-brightgreen)
 
-**Task 6: Database Integration and User Authentication**
-- Real SQLite database (Node's built-in `node:sqlite`) storing users + items
-- User authentication via JWT (register/login), passwords hashed with bcrypt
-- All CRUD endpoints protected with an auth middleware — no token, no access
+A full-stack RESTful API with real database integration and JWT-based user authentication — built as part of the **Cognifyz Technologies** internship.
 
-## How to run (2 minutes)
+## 📌 What this covers
 
-1. Make sure you have **Node.js v22+** installed (`node -v`).
-2. In this folder, run:
-   ```
-   npm install
-   node server.js
-   ```
-3. Open your browser to **http://localhost:3000**
-4. Register a new account, log in, and start adding/editing/deleting items.
+**Task 5 — API Integration & Front-End Interaction**
+- RESTful CRUD endpoints (`GET`, `POST`, `PUT`, `DELETE`)
+- A front-end that fetches, displays, creates, and updates data live from the API
 
-## API Endpoints
-| Method | Endpoint              | Auth required | Description        |
-|--------|------------------------|:--------------:|---------------------|
-| POST   | /api/auth/register     | No             | Create account       |
-| POST   | /api/auth/login        | No             | Log in, get JWT      |
-| GET    | /api/items             | Yes            | List your items      |
-| GET    | /api/items/:id         | Yes            | Get one item         |
-| POST   | /api/items             | Yes            | Create item          |
-| PUT    | /api/items/:id         | Yes            | Update item          |
-| DELETE | /api/items/:id         | Yes            | Delete item          |
+**Task 6 — Database Integration & User Authentication**
+- Real SQLite database (Node's built-in `node:sqlite`) for users and items
+- User registration & login with bcrypt-hashed passwords
+- JWT-based authentication — every CRUD endpoint requires a valid token
+- Users can only see and manage their own data
 
-Auth uses `Authorization: Bearer <token>` header (frontend handles this automatically after login).
+## 🛠 Tech Stack
+- **Backend:** Node.js, Express
+- **Database:** SQLite (via `node:sqlite`)
+- **Auth:** JWT + bcrypt
+- **Frontend:** Vanilla JS, HTML, CSS
 
-## What to say in your submission / demo
-- "I built a RESTful API with full CRUD operations, integrated a SQLite database, and implemented JWT-based user authentication so each user only sees their own data. All endpoints are protected — unauthenticated requests are rejected with a 401."
+## 🚀 Run it locally
+
+```bash
+git clone https://github.com/yugasriv/cognifyz-task5-6-secure-api.git
+cd cognifyz-task5-6-secure-api
+npm install
+node server.js
+```
+Then open **http://localhost:3000**
+
+## 📡 API Endpoints
+
+| Method | Endpoint            | Auth | Description      |
+|--------|----------------------|:----:|-------------------|
+| POST   | /api/auth/register   | ❌   | Create account    |
+| POST   | /api/auth/login      | ❌   | Log in, get JWT   |
+| GET    | /api/items           | ✅   | List your items   |
+| GET    | /api/items/:id       | ✅   | Get one item      |
+| POST   | /api/items           | ✅   | Create item       |
+| PUT    | /api/items/:id       | ✅   | Update item       |
+| DELETE | /api/items/:id       | ✅   | Delete item       |
+
+## 👩‍💻 Author
+**Yuga Sri** — B.Tech AI & Data Science, Er. Perumal Manimekalai College of Engineering
