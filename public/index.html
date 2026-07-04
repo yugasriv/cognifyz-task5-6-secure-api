@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cognifyz Task 5 & 6 — Secure CRUD App</title>
+<style>
+  :root{--accent:#3b82f6;--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--danger:#ef4444;--ok:#22c55e;}
+  *{box-sizing:border-box;}
+  body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:0;}
+  .wrap{max-width:640px;margin:0 auto;padding:32px 16px 80px;}
+  h1{font-size:1.4rem;margin-bottom:4px;}
+  .sub{color:var(--muted);margin-top:0;margin-bottom:24px;font-size:0.9rem;}
+  .card{background:var(--card);border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 4px 14px rgba(0,0,0,.3);}
+  input,button,textarea{font-size:1rem;border-radius:8px;border:1px solid #334155;padding:10px 12px;background:#0f172a;color:var(--text);width:100%;margin-bottom:10px;}
+  button{background:var(--accent);border:none;cursor:pointer;font-weight:600;transition:.15s;}
+  button:hover{filter:brightness(1.1);}
+  button.danger{background:var(--danger);}
+  button.ok{background:var(--ok);}
+  .row{display:flex;gap:8px;}
+  .row > *{flex:1;}
+  #authSection, #appSection{display:none;}
+  .item{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:10px;}
+  .item h3{margin:0 0 4px;}
+  .item p{margin:0 0 8px;color:var(--muted);}
+  .item .actions{display:flex;gap:8px;}
+  .item .actions button{width:auto;padding:6px 14px;font-size:.85rem;}
+  #msg{font-size:.9rem;margin-bottom:10px;min-height:20px;}
+  .msg-err{color:var(--danger);}
+  .msg-ok{color:var(--ok);}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .badge{background:#0f172a;border:1px solid #334155;padding:4px 10px;border-radius:20px;font-size:.8rem;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔐 Task 5 & 6 — Secure CRUD Dashboard</h1>
+  <p class="sub">RESTful API · Database Integration · JWT Authentication</p>
+
+  <div id="msg"></div>
+
+  <!-- AUTH -->
+  <div id="authSection" class="card">
+    <div id="loginForm">
+      <h3>Login</h3>
+      <input id="loginUser" placeholder="Username">
+      <input id="loginPass" type="password" placeholder="Password">
+      <button onclick="login()">Log In</button>
+      <p style="text-align:center;color:var(--muted);">No account? <a href="#" style="color:var(--accent)" onclick="toggleForm()">Register</a></p>
+    </div>
+    <div id="registerForm" style="display:none;">
+      <h3>Register</h3>
+      <input id="regUser" placeholder="Username">
+      <input id="regPass" type="password" placeholder="Password">
+      <button onclick="register()">Create Account</button>
+      <p style="text-align:center;color:var(--muted);">Have an account? <a href="#" style="color:var(--accent)" onclick="toggleForm()">Login</a></p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appSection">
+    <div class="topbar">
+      <span class="badge">Logged in as <b id="currentUser"></b></span>
+      <button style="width:auto" class="danger" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="card">
+      <h3>Add Item</h3>
+      <input id="itemTitle" placeholder="Title">
+      <textarea id="itemDesc" placeholder="Description" rows="2"></textarea>
+      <button class="ok" onclick="createItem()">+ Add Item</button>
+    </div>
+
+    <div class="card">
+      <h3>Your Items</h3>
+      <div id="itemsList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = ''; // same origin
+let token = localStorage.getItem('token');
+let username = localStorage.getItem('username');
+
+function showMsg(text, type){
+  const m = document.getElementById('msg');
+  m.textContent = text;
+  m.className = type === 'err' ? 'msg-err' : 'msg-ok';
+  setTimeout(()=>{ m.textContent=''; }, 3500);
+}
+
+function toggleForm(){
+  document.getElementById('loginForm').style.display =
+    document.getElementById('loginForm').style.display === 'none' ? 'block' : 'none';
+  document.getElementById('registerForm').style.display =
+    document.getElementById('registerForm').style.display === 'none' ? 'block' : 'none';
+}
+
+async function register(){
+  const u = document.getElementById('regUser').value.trim();
+  const p = document.getElementById('regPass').value;
+  if(!u || !p) return showMsg('Enter username and password','err');
+  const res = await fetch('/api/auth/register', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p})});
+  const data = await res.json();
+  if(!res.ok) return showMsg(data.error || 'Registration failed','err');
+  setSession(data.token, data.username);
+  showMsg('Account created!','ok');
+}
+
+async function login(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if(!u || !p) return showMsg('Enter username and password','err');
+  const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p})});
+  const data = await res.json();
+  if(!res.ok) return showMsg(data.error || 'Login failed','err');
+  setSession(data.token, data.username);
+  showMsg('Welcome back!','ok');
+}
+
+function setSession(t, u){
+  token = t; username = u;
+  localStorage.setItem('token', t);
+  localStorage.setItem('username', u);
+  render();
+}
+
+function logout(){
+  token = null; username = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('username');
+  render();
+}
+
+async function authFetch(url, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization': 'Bearer ' + token, 'Content-Type':'application/json'});
+  const res = await fetch(url, opts);
+  if(res.status === 401 || res.status === 403){ logout(); showMsg('Session expired, please log in again','err'); throw new Error('unauth'); }
+  return res;
+}
+
+async function loadItems(){
+  const res = await authFetch('/api/items');
+  const items = await res.json();
+  const list = document.getElementById('itemsList');
+  list.innerHTML = items.length ? '' : '<p style="color:var(--muted)">No items yet — add one above.</p>';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `
+      <h3>${escapeHtml(item.title)}</h3>
+      <p>${escapeHtml(item.description || '')}</p>
+      <div class="actions">
+        <button class="ok" onclick="editItem(${item.id}, '${encodeURIComponent(item.title)}', '${encodeURIComponent(item.description||'')}')">Edit</button>
+        <button class="danger" onclick="deleteItem(${item.id})">Delete</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function createItem(){
+  const title = document.getElementById('itemTitle').value.trim();
+  const description = document.getElementById('itemDesc').value.trim();
+  if(!title) return showMsg('Title is required','err');
+  await authFetch('/api/items', {method:'POST', body: JSON.stringify({title, description})});
+  document.getElementById('itemTitle').value='';
+  document.getElementById('itemDesc').value='';
+  showMsg('Item added','ok');
+  loadItems();
+}
+
+async function editItem(id, oldTitleEnc, oldDescEnc){
+  const newTitle = prompt('New title:', decodeURIComponent(oldTitleEnc));
+  if(newTitle === null) return;
+  const newDesc = prompt('New description:', decodeURIComponent(oldDescEnc));
+  await authFetch('/api/items/' + id, {method:'PUT', body: JSON.stringify({title:newTitle, description:newDesc})});
+  showMsg('Item updated','ok');
+  loadItems();
+}
+
+async function deleteItem(id){
+  if(!confirm('Delete this item?')) return;
+  await authFetch('/api/items/' + id, {method:'DELETE'});
+  showMsg('Item deleted','ok');
+  loadItems();
+}
+
+function render(){
+  if(token){
+    document.getElementById('authSection').style.display = 'none';
+    document.getElementById('appSection').style.display = 'block';
+    document.getElementById('currentUser').textContent = username;
+    loadItems();
+  } else {
+    document.getElementById('authSection').style.display = 'block';
+    document.getElementById('appSection').style.display = 'none';
+  }
+}
+
+render();
+</script>
+</body>
+</html>
