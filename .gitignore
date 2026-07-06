@@ -2,3 +2,4 @@ node_modules/
 app.db
 server.log
 *.log
+.env

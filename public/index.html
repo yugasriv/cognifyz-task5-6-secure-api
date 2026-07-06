@@ -74,6 +74,27 @@
       <h3>Your Items</h3>
       <div id="itemsList"></div>
     </div>
+
+    <div class="card">
+      <h3>🌤️ Weather (External API + Caching demo)</h3>
+      <div class="row">
+        <input id="cityInput" placeholder="Enter a city, e.g. Bangalore">
+        <button style="width:auto" onclick="getWeather()">Check</button>
+      </div>
+      <div id="weatherResult" style="color:var(--muted);font-size:.9rem;"></div>
+    </div>
+
+    <div class="card">
+      <h3>⚙️ Background Job (Report Generation)</h3>
+      <button class="ok" onclick="startJob()">Generate Report</button>
+      <div id="jobResult" style="color:var(--muted);font-size:.9rem;margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h3>🔐 OAuth 2.0 Demo</h3>
+      <p style="color:var(--muted);font-size:.9rem;">Test the full OAuth Authorization Code flow as a third-party app would.</p>
+      <button onclick="startOAuth()">Try "Sign in with Demo App"</button>
+    </div>
   </div>
 </div>
 
@@ -185,6 +206,52 @@ async function deleteItem(id){
   await authFetch('/api/items/' + id, {method:'DELETE'});
   showMsg('Item deleted','ok');
   loadItems();
+}
+
+async function getWeather(){
+  const city = document.getElementById('cityInput').value.trim();
+  if(!city) return showMsg('Enter a city name','err');
+  const box = document.getElementById('weatherResult');
+  box.textContent = 'Loading...';
+  try{
+    const res = await authFetch('/api/weather/' + encodeURIComponent(city));
+    const cacheStatus = res.headers.get('X-Cache');
+    const data = await res.json();
+    if(!res.ok){ box.textContent = data.error || 'Error fetching weather'; return; }
+    box.innerHTML = `<b>${escapeHtml(data.city)}, ${escapeHtml(data.country||'')}</b><br>
+      Temp: ${data.current.temperature}°C · Wind: ${data.current.windspeed} km/h<br>
+      <span style="color:${cacheStatus==='HIT' ? 'var(--ok)' : 'var(--accent)'}">Cache: ${cacheStatus}</span>`;
+  } catch(e){ box.textContent = 'Request failed (this needs internet access — works on Replit/local, blocked in some sandboxes)'; }
+}
+
+async function startJob(){
+  const box = document.getElementById('jobResult');
+  box.textContent = 'Submitting job...';
+  const res = await authFetch('/api/jobs/report', {method:'POST'});
+  const data = await res.json();
+  box.textContent = 'Job queued (id: ' + data.jobId + '). Checking status...';
+  pollJob(data.jobId);
+}
+
+async function pollJob(id){
+  const box = document.getElementById('jobResult');
+  const res = await authFetch('/api/jobs/' + id);
+  const job = await res.json();
+  if(job.status === 'completed'){
+    box.innerHTML = `<b>✅ Done:</b> ${escapeHtml(job.result.summary)}`;
+  } else if(job.status === 'failed'){
+    box.textContent = '❌ Job failed: ' + job.error;
+  } else {
+    box.textContent = `Status: ${job.status}...`;
+    setTimeout(() => pollJob(id), 1000);
+  }
+}
+
+function startOAuth(){
+  const url = '/oauth/authorize?client_id=demo-client&redirect_uri=' +
+    encodeURIComponent(window.location.origin + '/oauth/callback') +
+    '&state=demo123';
+  window.open(url, '_blank');
 }
 
 function render(){

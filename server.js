@@ -1,21 +1,38 @@
 // server.js
 // Task 5: RESTful API + Front-End Interaction
 // Task 6: Database Integration + User Authentication
+// Task 7: Advanced API Usage + External API Integration (OAuth, weather API, rate limiting)
+// Task 8: Advanced Server-Side Functionality (middleware, background jobs, caching)
 
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { DatabaseSync } = require('node:sqlite'); // Node's built-in SQLite (Node 22+)
 const path = require('path');
 
+const { generalLimiter, authLimiter } = require('./src/middleware/rateLimiter');
+const { errorHandler, asyncHandler } = require('./src/middleware/errorHandler');
+const AppError = require('./src/utils/AppError');
+const cache = require('./src/services/cache');
+const { getWeatherForCity } = require('./src/services/weatherService');
+const jobQueue = require('./src/queue/jobQueue');
+const createOAuthRouter = require('./src/oauth/oauthServer');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = 'cognifyz-secret-key-change-in-production'; // for real deployment, use env var
 
+// ---------- Task 8.1: Middleware for request processing (logging, body parsing) ----------
 app.use(cors());
+app.use(morgan('dev')); // request logging middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // needed for OAuth token endpoint (form-encoded per spec)
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Task 7.3: Rate limiting — general limit on all API routes
+app.use('/api/', generalLimiter);
 
 // ---------- DATABASE SETUP (Task 6.1: Integrate a database) ----------
 const db = new DatabaseSync(path.join(__dirname, 'app.db'));
@@ -52,7 +69,7 @@ function authenticateToken(req, res, next) {
 }
 
 // ---------- AUTH ROUTES ----------
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', authLimiter, (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -71,7 +88,7 @@ app.post('/api/auth/register', (req, res) => {
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authLimiter, (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -131,6 +148,46 @@ app.delete('/api/items/:id', authenticateToken, (req, res) => {
   db.prepare('DELETE FROM items WHERE id = ?').run(req.params.id);
   res.json({ message: 'Item deleted' });
 });
+
+// ---------- Task 7.1: OAuth 2.0 Authorization Code flow ----------
+app.use(createOAuthRouter(db));
+
+// ---------- Task 7.2: External API integration (weather) + Task 8.3: caching ----------
+app.get('/api/weather/:city', authenticateToken, asyncHandler(async (req, res) => {
+  const data = await getWeatherForCity(req.params.city);
+  res.set('X-Cache', data.fromCache ? 'HIT' : 'MISS');
+  res.json(data);
+}));
+
+// ---------- Task 8.2: Background job / task queue processing ----------
+// Enqueue a "report generation" job — returns immediately, work happens async
+app.post('/api/jobs/report', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const jobId = jobQueue.enqueue('generate_report', { userId }, async (payload) => {
+    // Simulate a slow background task (e.g. building a PDF report)
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    const items = db.prepare('SELECT * FROM items WHERE owner_id = ?').all(payload.userId);
+    return {
+      totalItems: items.length,
+      generatedAt: new Date().toISOString(),
+      summary: `Report for user ${payload.userId}: ${items.length} item(s) on record.`,
+    };
+  });
+  res.status(202).json({ message: 'Job accepted, processing in background', jobId });
+});
+
+// Poll job status/result
+app.get('/api/jobs/:id', authenticateToken, (req, res) => {
+  const job = jobQueue.getStatus(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  res.json(job);
+});
+
+// ---------- Task 7.3: Centralized error handling middleware (must be last) ----------
+app.use((req, res) => {
+  res.status(404).json({ error: `Route ${req.method} ${req.originalUrl} not found` });
+});
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
